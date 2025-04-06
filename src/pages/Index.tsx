@@ -24,8 +24,8 @@ const Index = () => {
 
   useEffect(() => {
     const loadAllProducts = async () => {
-      setLoadingCategories(true);
       try {
+        setLoadingCategories(true);
         await fetchProducts();
         
         // Fetch products by category in parallel
@@ -63,7 +63,10 @@ const Index = () => {
     loadAllProducts();
   }, [fetchProducts, fetchProductsByCategory, toast]);
 
+  // Use a simple variable to check if we're in a loading state
   const isLoading = storeLoading || loadingCategories;
+
+  console.log('Component rendering with:', { storeLoading, loadingCategories, isLoading });
 
   return (
     <div className="min-h-screen flex flex-col">
