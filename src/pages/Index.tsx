@@ -9,6 +9,7 @@ import Footer from "../components/Footer";
 import { useProductStore } from "../store/ProductStore";
 import { Product } from "../types";
 import { useToast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/ui/spinner";
 
 const Index = () => {
   const { products, fetchProducts, fetchProductsByCategory } = useProductStore();
