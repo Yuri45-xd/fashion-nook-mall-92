@@ -11,7 +11,7 @@ import { Product } from "../types";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const { products, fetchProducts, isLoading, error, fetchProductsByCategory } = useProductStore();
+  const { products, fetchProducts, fetchProductsByCategory } = useProductStore();
   const { toast } = useToast();
   
   const [tshirts, setTshirts] = useState<Product[]>([]);
