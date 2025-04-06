@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useProductStore } from "@/store/ProductStore";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -23,17 +23,28 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ProductsTableProps {
   onEdit: (product: Product) => void;
   onDelete: (id: number) => void;
+  isRefreshing?: boolean;
 }
 
-const ProductsTable: React.FC<ProductsTableProps> = ({ onEdit, onDelete }) => {
+const ProductsTable: React.FC<ProductsTableProps> = ({ 
+  onEdit, 
+  onDelete, 
+  isRefreshing = false 
+}) => {
   const { products } = useProductStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  // Reset to first page when products change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [products]);
 
   const filteredProducts = products.filter((product) =>
     product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,7 +80,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({ onEdit, onDelete }) => {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border relative">
+        {isRefreshing && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+            <Spinner className="h-8 w-8" />
+          </div>
+        )}
+        
         <Table>
           <TableHeader>
             <TableRow>

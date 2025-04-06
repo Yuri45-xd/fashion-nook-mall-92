@@ -1,71 +1,173 @@
 
 import { create } from "zustand";
 import { Product } from "../types";
-import { products as initialProducts } from "../data/products";
 import { persist } from "zustand/middleware";
+import { ProductService } from "../services/ProductService";
 
 interface ProductState {
   products: Product[];
-  addProduct: (product: Product) => void;
-  deleteProduct: (id: number) => void;
-  updateProduct: (product: Product) => void;
-  getProductById: (id: number) => Product | undefined;
+  isLoading: boolean;
+  error: string | null;
+  initialized: boolean;
+  
+  // Actions
+  fetchProducts: () => Promise<void>;
+  fetchProductsByCategory: (category: string) => Promise<Product[]>;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<Product | null>;
+  deleteProduct: (id: number) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<Product | null>;
+  getProductById: (id: number) => Promise<Product | undefined>;
+  updateStock: (id: number, newStock: number) => Promise<boolean>;
+  
+  // Selector methods (synchronous, work with local state)
   getProductsByCategory: (category: string) => Product[];
-  updateStock: (id: number, newStock: number) => void;
 }
-
-// Add stock information to initial products
-const enhancedProducts = initialProducts.map(product => ({
-  ...product,
-  stock: Math.floor(Math.random() * (100 - 10)) + 10, // Random stock between 10-100
-  description: `High quality ${product.category} with great comfort and style. Perfect for casual and formal occasions.`,
-  sku: `${product.category.substring(0, 3).toUpperCase()}-${product.id}00${product.id}`
-}));
 
 export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
-      products: enhancedProducts,
+      products: [],
+      isLoading: false,
+      error: null,
+      initialized: false,
       
-      addProduct: (product) => {
-        // If no ID is provided, create one
-        const newProduct = { 
-          ...product, 
-          id: product.id || Math.max(0, ...get().products.map(p => p.id)) + 1
-        };
-        set((state) => ({ 
-          products: [...state.products, newProduct] 
-        }));
+      fetchProducts: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          // Initialize products if needed
+          if (!get().initialized) {
+            await ProductService.initializeProducts();
+            set({ initialized: true });
+          }
+          
+          const products = await ProductService.getAllProducts();
+          set({ products, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching products:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to fetch products', 
+            isLoading: false 
+          });
+        }
       },
       
-      deleteProduct: (id) => {
-        set((state) => ({ 
-          products: state.products.filter(product => product.id !== id) 
-        }));
+      fetchProductsByCategory: async (category: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const products = await ProductService.getProductsByCategory(category);
+          return products;
+        } catch (error) {
+          console.error(`Error fetching ${category} products:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : `Failed to fetch ${category} products`, 
+            isLoading: false 
+          });
+          return [];
+        } finally {
+          set({ isLoading: false });
+        }
       },
       
-      updateProduct: (updatedProduct) => {
-        set((state) => ({ 
-          products: state.products.map(product => 
-            product.id === updatedProduct.id ? updatedProduct : product
-          ) 
-        }));
+      addProduct: async (product) => {
+        set({ isLoading: true, error: null });
+        try {
+          const newProduct = await ProductService.addProduct(product);
+          if (newProduct) {
+            set((state) => ({ 
+              products: [...state.products, newProduct],
+              isLoading: false 
+            }));
+          }
+          return newProduct;
+        } catch (error) {
+          console.error('Error adding product:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to add product', 
+            isLoading: false 
+          });
+          return null;
+        }
       },
       
-      getProductById: (id) => {
-        return get().products.find(product => product.id === id);
+      deleteProduct: async (id) => {
+        set({ isLoading: true, error: null });
+        try {
+          const success = await ProductService.deleteProduct(id);
+          if (success) {
+            set((state) => ({ 
+              products: state.products.filter(product => product.id !== id),
+              isLoading: false 
+            }));
+          }
+          return success;
+        } catch (error) {
+          console.error(`Error deleting product ${id}:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : `Failed to delete product ${id}`, 
+            isLoading: false 
+          });
+          return false;
+        }
       },
       
+      updateProduct: async (updatedProduct) => {
+        set({ isLoading: true, error: null });
+        try {
+          const result = await ProductService.updateProduct(updatedProduct);
+          if (result) {
+            set((state) => ({ 
+              products: state.products.map(product => 
+                product.id === updatedProduct.id ? updatedProduct : product
+              ),
+              isLoading: false 
+            }));
+          }
+          return result;
+        } catch (error) {
+          console.error(`Error updating product ${updatedProduct.id}:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : `Failed to update product ${updatedProduct.id}`, 
+            isLoading: false 
+          });
+          return null;
+        }
+      },
+      
+      getProductById: async (id) => {
+        // First check if we have it in our local state
+        const localProduct = get().products.find(product => product.id === id);
+        if (localProduct) return localProduct;
+        
+        // If not, fetch from API
+        return await ProductService.getProductById(id);
+      },
+      
+      updateStock: async (id, newStock) => {
+        set({ isLoading: true, error: null });
+        try {
+          const success = await ProductService.updateStock(id, newStock);
+          if (success) {
+            set((state) => ({
+              products: state.products.map(product => 
+                product.id === id ? { ...product, stock: newStock } : product
+              ),
+              isLoading: false
+            }));
+          }
+          return success;
+        } catch (error) {
+          console.error(`Error updating stock for product ${id}:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : `Failed to update stock for product ${id}`, 
+            isLoading: false 
+          });
+          return false;
+        }
+      },
+      
+      // Synchronous selector that works with local state
       getProductsByCategory: (category) => {
         return get().products.filter(product => product.category === category);
-      },
-      
-      updateStock: (id, newStock) => {
-        set((state) => ({
-          products: state.products.map(product => 
-            product.id === id ? { ...product, stock: newStock } : product
-          )
-        }));
       }
     }),
     {

@@ -12,6 +12,7 @@ export type Product = {
   description?: string;
   stock?: number;
   sku?: string;
+  created_at?: string;  // Added for Supabase
 };
 
 export type Category = {

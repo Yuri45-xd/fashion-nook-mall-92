@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Header from "../components/Header";
@@ -6,19 +7,50 @@ import CategoryNav from "../components/CategoryNav";
 import ProductCard from "../components/ProductCard";
 import { ChevronDown, Filter } from "lucide-react";
 import { useProductStore } from "../store/ProductStore";
+import { Product } from "../types";
+import { useToast } from "@/hooks/use-toast";
 
 const CategoryPage = () => {
   const { categoryName } = useParams<{ categoryName: string }>();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState("popularity");
   const [showFilters, setShowFilters] = useState(false);
-  const { getProductsByCategory } = useProductStore();
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const { fetchProductsByCategory } = useProductStore();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (categoryName) {
-      setProducts(getProductsByCategory(categoryName));
-    }
-  }, [categoryName, getProductsByCategory]);
+    const loadProducts = async () => {
+      if (categoryName) {
+        setIsLoading(true);
+        try {
+          const fetchedProducts = await fetchProductsByCategory(categoryName);
+          setProducts(fetchedProducts);
+        } catch (error) {
+          console.error(`Error loading ${categoryName} products:`, error);
+          toast({
+            title: "Error",
+            description: `Failed to load ${categoryName} products`,
+            variant: "destructive"
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadProducts();
+  }, [categoryName, fetchProductsByCategory, toast]);
+
+  // Handle sorting
+  const sortedProducts = [...products].sort((a, b) => {
+    if (sortBy === "priceLow") return a.price - b.price;
+    if (sortBy === "priceHigh") return b.price - a.price;
+    if (sortBy === "newest") return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
+    // Default: popularity - sort by rating and rating count
+    return b.rating * b.ratingCount - a.rating * a.ratingCount;
+  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -111,17 +143,25 @@ const CategoryPage = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-              
-              {products.length === 0 && (
-                <div className="col-span-full py-16 text-center">
-                  <p className="text-lg text-gray-500">No products found in this category.</p>
-                </div>
-              )}
-            </div>
+            {isLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="bg-gray-100 rounded-md h-64 animate-pulse"></div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {sortedProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+                
+                {sortedProducts.length === 0 && (
+                  <div className="col-span-full py-16 text-center">
+                    <p className="text-lg text-gray-500">No products found in this category.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

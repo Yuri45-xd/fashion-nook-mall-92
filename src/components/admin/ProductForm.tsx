@@ -14,6 +14,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 
 const CATEGORIES = ["tshirts", "hoodies", "jeans", "dresses", "shirts", "kids"];
 
@@ -26,6 +27,7 @@ const ProductForm = ({
 }) => {
   const { addProduct, updateProduct } = useProductStore();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Product>>(
     product || {
@@ -83,67 +85,97 @@ const ProductForm = ({
     return `${category}-${timestamp}`;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Ensure all required fields are present
-    if (!formData.title || !formData.price || !formData.originalPrice || !formData.image || !formData.category) {
+    try {
+      // Ensure all required fields are present
+      if (!formData.title || !formData.price || !formData.originalPrice || !formData.image || !formData.category) {
+        toast({
+          title: "Error",
+          description: "Please fill all required fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // If discount percentage is not provided or calculated
+      if (!formData.discountPercentage && formData.originalPrice && formData.price) {
+        const discount = ((formData.originalPrice - formData.price) / formData.originalPrice) * 100;
+        formData.discountPercentage = Math.round(discount);
+      }
+      
+      // Generate SKU for new products if not already set
+      if (!product && !formData.sku) {
+        formData.sku = generateSKU();
+      }
+      
+      // Set default stock if not provided
+      if (formData.stock === undefined) {
+        formData.stock = 10;
+      }
+      
+      let result;
+      
+      if (product) {
+        // Update existing product
+        result = await updateProduct(formData as Product);
+        if (result) {
+          toast({
+            title: "Success",
+            description: "Product updated successfully"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to update product",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Add new product
+        result = await addProduct(formData as Omit<Product, 'id'>);
+        if (result) {
+          toast({
+            title: "Success",
+            description: "Product added successfully"
+          });
+          
+          // Clear form
+          setFormData({
+            title: "",
+            price: 0,
+            originalPrice: 0,
+            discountPercentage: 0,
+            image: "",
+            rating: 4.0,
+            ratingCount: 0,
+            category: "tshirts",
+            description: "",
+            stock: 10
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to add product",
+            variant: "destructive"
+          });
+        }
+      }
+      
+      if (result && onSubmit) {
+        onSubmit();
+      }
+    } catch (error) {
+      console.error("Error submitting product:", error);
       toast({
         title: "Error",
-        description: "Please fill all required fields",
+        description: "An unexpected error occurred",
         variant: "destructive"
       });
-      return;
-    }
-    
-    // If discount percentage is not provided or calculated
-    if (!formData.discountPercentage && formData.originalPrice && formData.price) {
-      const discount = ((formData.originalPrice - formData.price) / formData.originalPrice) * 100;
-      formData.discountPercentage = Math.round(discount);
-    }
-    
-    // Generate SKU for new products if not already set
-    if (!product && !formData.sku) {
-      formData.sku = generateSKU();
-    }
-    
-    // Set default stock if not provided
-    if (formData.stock === undefined) {
-      formData.stock = 10;
-    }
-    
-    if (product) {
-      // Update existing product
-      updateProduct(formData as Product);
-      toast({
-        title: "Success",
-        description: "Product updated successfully"
-      });
-    } else {
-      // Add new product
-      addProduct(formData as Product);
-      toast({
-        title: "Success",
-        description: "Product added successfully"
-      });
-      
-      // Clear form
-      setFormData({
-        title: "",
-        price: 0,
-        originalPrice: 0,
-        discountPercentage: 0,
-        image: "",
-        rating: 4.0,
-        ratingCount: 0,
-        category: "tshirts",
-        description: "",
-        stock: 10
-      });
-    }
-    
-    if (onSubmit) {
-      onSubmit();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,6 +192,7 @@ const ProductForm = ({
           onChange={handleChange}
           placeholder="Product title"
           required
+          disabled={isSubmitting}
         />
       </div>
       
@@ -174,6 +207,7 @@ const ProductForm = ({
           onChange={handleChange}
           placeholder="Product description"
           rows={3}
+          disabled={isSubmitting}
         />
       </div>
       
@@ -193,6 +227,7 @@ const ProductForm = ({
               placeholder="Original price"
               className="pl-7"
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -212,6 +247,7 @@ const ProductForm = ({
               placeholder="Sale price"
               className="pl-7"
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -228,6 +264,7 @@ const ProductForm = ({
             onChange={handleChange}
             placeholder="Discount percentage"
             readOnly
+            disabled={isSubmitting}
           />
           <p className="text-xs text-gray-500 mt-1">Auto-calculated from prices</p>
         </div>
@@ -241,6 +278,7 @@ const ProductForm = ({
           <Select 
             value={formData.category} 
             onValueChange={handleCategoryChange}
+            disabled={isSubmitting}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select a category" />
@@ -267,6 +305,7 @@ const ProductForm = ({
             onChange={handleChange}
             placeholder="Available stock"
             required
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -282,6 +321,7 @@ const ProductForm = ({
           onChange={handleChange}
           placeholder="Image URL"
           required
+          disabled={isSubmitting}
         />
         <p className="text-xs text-gray-500 mt-1">
           Provide a URL to an image (recommended size: 500x500px)
@@ -316,6 +356,7 @@ const ProductForm = ({
             value={formData.rating}
             onChange={handleChange}
             placeholder="Rating"
+            disabled={isSubmitting}
           />
         </div>
         
@@ -330,6 +371,7 @@ const ProductForm = ({
             value={formData.ratingCount}
             onChange={handleChange}
             placeholder="Rating count"
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -345,12 +387,24 @@ const ProductForm = ({
             value={formData.sku}
             readOnly
             className="bg-gray-50"
+            disabled={isSubmitting}
           />
         </div>
       )}
       
-      <Button type="submit" className="bg-flipkart-blue w-full">
-        {product ? "Update Product" : "Add Product"}
+      <Button 
+        type="submit" 
+        className="bg-flipkart-blue w-full"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <Spinner className="mr-2 h-4 w-4" />
+            {product ? "Updating..." : "Adding..."}
+          </>
+        ) : (
+          product ? "Update Product" : "Add Product"
+        )}
       </Button>
     </form>
   );
