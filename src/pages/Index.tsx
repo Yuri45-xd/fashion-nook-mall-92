@@ -20,11 +20,11 @@ const Index = () => {
   const [jeans, setJeans] = useState<Product[]>([]);
   const [dresses, setDresses] = useState<Product[]>([]);
   const [kids, setKids] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   useEffect(() => {
     const loadAllProducts = async () => {
-      setIsLoading(true);
+      setLoadingCategories(true);
       try {
         await fetchProducts();
         
@@ -56,12 +56,14 @@ const Index = () => {
           variant: "destructive"
         });
       } finally {
-        setIsLoading(false);
+        setLoadingCategories(false);
       }
     };
     
     loadAllProducts();
   }, [fetchProducts, fetchProductsByCategory, toast]);
+
+  const isLoading = storeLoading || loadingCategories;
 
   return (
     <div className="min-h-screen flex flex-col">
