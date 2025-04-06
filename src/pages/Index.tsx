@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 
 const Index = () => {
-  const { products, fetchProducts, fetchProductsByCategory } = useProductStore();
+  const { products, fetchProducts, fetchProductsByCategory, isLoading: storeLoading } = useProductStore();
   const { toast } = useToast();
   
   const [tshirts, setTshirts] = useState<Product[]>([]);
