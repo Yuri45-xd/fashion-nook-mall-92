@@ -20,14 +20,15 @@ const Index = () => {
   const [jeans, setJeans] = useState<Product[]>([]);
   const [dresses, setDresses] = useState<Product[]>([]);
   const [kids, setKids] = useState<Product[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   useEffect(() => {
     const loadAllProducts = async () => {
       try {
-        setLoadingCategories(true);
+        // First fetch all products
         await fetchProducts();
         
+        console.log("Fetching category products...");
         // Fetch products by category in parallel
         const [
           fetchedTshirts,
@@ -42,6 +43,14 @@ const Index = () => {
           fetchProductsByCategory("dresses"),
           fetchProductsByCategory("kids")
         ]);
+        
+        console.log("Category products fetched:", {
+          tshirts: fetchedTshirts.length,
+          hoodies: fetchedHoodies.length,
+          jeans: fetchedJeans.length,
+          dresses: fetchedDresses.length,
+          kids: fetchedKids.length
+        });
         
         setTshirts(fetchedTshirts);
         setHoodies(fetchedHoodies);
@@ -66,10 +75,22 @@ const Index = () => {
   // Use a simple variable to check if we're in a loading state
   const isLoading = storeLoading || loadingCategories;
 
-  console.log('Component rendering with:', { storeLoading, loadingCategories, isLoading });
+  console.log('Component rendering with:', { 
+    storeLoading, 
+    loadingCategories, 
+    isLoading,
+    productsCount: products.length,
+    categoryCounts: {
+      tshirts: tshirts.length,
+      hoodies: hoodies.length,
+      jeans: jeans.length,
+      dresses: dresses.length,
+      kids: kids.length
+    }
+  });
 
   return (
-    <div className="min-h-screen flex flex-col bg-flipkart-bg-light">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <CategoryNav />
       <main className="flex-1 container mx-auto px-4 py-4">
