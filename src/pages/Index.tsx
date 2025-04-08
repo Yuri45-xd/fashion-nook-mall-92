@@ -20,7 +20,7 @@ const Index = () => {
   const [jeans, setJeans] = useState<Product[]>([]);
   const [dresses, setDresses] = useState<Product[]>([]);
   const [kids, setKids] = useState<Product[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   useEffect(() => {
     const loadAllProducts = async () => {
@@ -69,7 +69,7 @@ const Index = () => {
   console.log('Component rendering with:', { storeLoading, loadingCategories, isLoading });
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-flipkart-bg-light">
       <Header />
       <CategoryNav />
       <main className="flex-1 container mx-auto px-4 py-4">
